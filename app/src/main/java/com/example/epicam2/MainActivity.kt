@@ -12,7 +12,10 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.animation.Animation
+import android.view.animation.AnimationUtils
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -47,31 +50,54 @@ class MainActivity : AppCompatActivity() {
     private lateinit var countdownText: TextView
     private val handler = Handler(Looper.getMainLooper())
 
+    private lateinit var captureButton: Button
     private lateinit var previewImage: ImageView
-    private lateinit var saveButton: Button
-    private lateinit var deleteButton: Button
+    private lateinit var saveButton: ImageButton
+    private lateinit var deleteButton: ImageButton
     private var lastPhotoFile: File? = null
 
+
+    /// On Create (Constructor)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        or View.SYSTEM_UI_FLAG_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                )
 
         if (!allPermissionsGranted()) {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
 
+        // Start the camera function
         startCamera()
 
+        // Init components
+        captureButton = findViewById<Button>(R.id.camera_capture_button)
         countdownText = findViewById(R.id.countdown_text)
-        val captureButton = findViewById<Button>(R.id.camera_capture_button)
         previewImage = findViewById(R.id.preview_image)
         saveButton = findViewById(R.id.save_button)
         deleteButton = findViewById(R.id.delete_button)
 
+        // Capture button
+        captureButton.startAnimation(AnimationUtils.loadAnimation(this, R.anim.pulse).apply {
+            repeatCount = Animation.INFINITE
+            }
+        )
+
         captureButton.setOnClickListener {
+            captureButton.clearAnimation() // Stop animation
+            captureButton.visibility = View.GONE // Hide button
             startCountdown()
         }
 
+        // Save button Click
         saveButton.setOnClickListener {
             if (lastPhotoFile != null && lastPhotoFile!!.exists()) {
                 Toast.makeText(this, "Billede gemt", Toast.LENGTH_SHORT).show()
@@ -79,27 +105,65 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Ingen fil at gemme", Toast.LENGTH_SHORT).show()
             }
 
-            previewImage.visibility = View.GONE
+            // Fade out animation
+            val fadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out)
+            previewImage.startAnimation(fadeOut)
+
+            fadeOut.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation?) {}
+                override fun onAnimationEnd(animation: Animation?) {
+                    previewImage.visibility = View.GONE
+                }
+                override fun onAnimationRepeat(animation: Animation?) {}
+            })
+
             saveButton.visibility = View.GONE
             deleteButton.visibility = View.GONE
+
+            captureButton.visibility = View.VISIBLE
+            captureButton.startAnimation(AnimationUtils.loadAnimation(this, R.anim.pulse).apply {
+                repeatCount = Animation.INFINITE
+                }
+            )
         }
 
+        // Delete button Click
         deleteButton.setOnClickListener {
             lastPhotoFile?.delete()
             Toast.makeText(this, "Billede slettet", Toast.LENGTH_SHORT).show()
 
-            previewImage.visibility = View.GONE
+            // Fade out animation
+            val fadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out)
+            previewImage.startAnimation(fadeOut)
+
+            fadeOut.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation?) {}
+                override fun onAnimationEnd(animation: Animation?) {
+                    previewImage.visibility = View.GONE
+                }
+                override fun onAnimationRepeat(animation: Animation?) {}
+            })
+
             saveButton.visibility = View.GONE
             deleteButton.visibility = View.GONE
+
+            captureButton.visibility = View.VISIBLE
+            captureButton.startAnimation(AnimationUtils.loadAnimation(this, R.anim.pulse).apply {
+                    repeatCount = Animation.INFINITE
+                }
+            )
         }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
+
+        // EPS32 Connection
         // connectToESP32() // Kald dette hvis du ønsker automatisk Bluetooth-forbindelse
     }
 
     private fun startCountdown() {
-        var count = 3
+        var count = 2
         countdownText.visibility = View.VISIBLE
+
         val countdownRunnable = object : Runnable {
             override fun run() {
                 if (count > 0) {
@@ -146,12 +210,13 @@ class MainActivity : AppCompatActivity() {
             dcimDir.mkdirs()
         }
 
-        val photoFile = File(
-            dcimDir,
+        val photoFile = File(dcimDir,
             "SELFIE_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())}.jpg"
         )
 
+        val fadeInFx = AnimationUtils.loadAnimation(this, R.anim.fade_in)
         val outputOptions = OutputFileOptions.Builder(photoFile).build()
+
         imageCapture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(this),
@@ -159,9 +224,11 @@ class MainActivity : AppCompatActivity() {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     lastPhotoFile = photoFile
                     showImagePreview(photoFile)
+
                     val bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
                     previewImage.setImageBitmap(bitmap)
                     previewImage.visibility = View.VISIBLE
+                    previewImage.startAnimation(fadeInFx)
                     saveButton.visibility = View.VISIBLE
                     deleteButton.visibility = View.VISIBLE
                 }
@@ -177,8 +244,8 @@ class MainActivity : AppCompatActivity() {
     private fun showImagePreview(photoFile: File) {
         val bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
         val previewImage = findViewById<ImageView>(R.id.preview_image)
-        val saveButton = findViewById<Button>(R.id.save_button)
-        val deleteButton = findViewById<Button>(R.id.delete_button)
+        val saveButton = findViewById<ImageButton>(R.id.save_button)
+        val deleteButton = findViewById<ImageButton>(R.id.delete_button)
 
         previewImage.setImageBitmap(bitmap)
         previewImage.visibility = View.VISIBLE
