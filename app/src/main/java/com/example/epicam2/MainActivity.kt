@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
@@ -56,6 +57,25 @@ class MainActivity : AppCompatActivity() {
     private lateinit var deleteButton: ImageButton
     private var lastPhotoFile: File? = null
 
+    // Bluetooth fields
+    private lateinit var bluetoothHelper: BluetoothHelper
+    private val requestCode = 1001
+    private val bluetoothPermissions =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            arrayOf(
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.BLUETOOTH_ADMIN,
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            )
+        } else {
+            arrayOf(
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.BLUETOOTH_ADMIN
+            )
+        }
 
     /// On Create (Constructor)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,6 +98,10 @@ class MainActivity : AppCompatActivity() {
         // Start the camera function
         startCamera()
 
+        // Initialize Bluetooth helper
+        bluetoothHelper = BluetoothHelper(this)
+        checkAndRequestBluetoothPermissions()
+
         // Init components
         captureButton = findViewById<Button>(R.id.camera_capture_button)
         countdownText = findViewById(R.id.countdown_text)
@@ -91,6 +115,7 @@ class MainActivity : AppCompatActivity() {
             }
         )
 
+        // Capture button Click
         captureButton.setOnClickListener {
             captureButton.clearAnimation() // Stop animation
             captureButton.visibility = View.GONE // Hide button
@@ -155,14 +180,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
-
-        // EPS32 Connection
-        // connectToESP32() // Kald dette hvis du ønsker automatisk Bluetooth-forbindelse
     }
 
     private fun startCountdown() {
-        var count = 2
+        var count = 3
         countdownText.visibility = View.VISIBLE
+
+        // Light ON
+        bluetoothHelper.sendLampCommand(true)
 
         val countdownRunnable = object : Runnable {
             override fun run() {
@@ -172,36 +197,11 @@ class MainActivity : AppCompatActivity() {
                     handler.postDelayed(this, 1000)
                 } else {
                     countdownText.visibility = View.GONE
-                    sendBluetoothSignal()
                     takePhoto()
                 }
             }
         }
         handler.post(countdownRunnable)
-    }
-
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    private fun connectToESP32() {
-        val device: BluetoothDevice? = bluetoothAdapter?.getRemoteDevice(esp32MacAddress)
-        try {
-            if (device != null) {
-                bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
-            }
-            bluetoothSocket?.connect()
-            outputStream = bluetoothSocket?.outputStream
-            Toast.makeText(this, "Bluetooth connected", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Toast.makeText(this, "Bluetooth failed to connect!", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun sendBluetoothSignal() {
-        try {
-            outputStream?.write("LIGHT_ON\n".toByteArray())
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
     private fun takePhoto() {
@@ -241,6 +241,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    /// Show image preview
     private fun showImagePreview(photoFile: File) {
         val bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
         val previewImage = findViewById<ImageView>(R.id.preview_image)
@@ -251,9 +252,12 @@ class MainActivity : AppCompatActivity() {
         previewImage.visibility = View.VISIBLE
         saveButton.visibility = View.VISIBLE
         deleteButton.visibility = View.VISIBLE
+
+        // Light OFF
+        bluetoothHelper.sendLampCommand(false)
     }
 
-
+    /// Start Camera
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
@@ -276,24 +280,68 @@ class MainActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
+    /// All permissions are granted - check
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
 
+    /// On Request Permissions Result
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == REQUEST_CODE_PERMISSIONS) {
+            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Bluetooth and camera need permissions", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /// Check and request Bluetooth Permissions
+    private fun checkAndRequestBluetoothPermissions() {
+        val missingPermissions = bluetoothPermissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missingPermissions.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, missingPermissions.toTypedArray(), requestCode)
+        }
+        else {
+            // Safe to start scanning
+            bluetoothHelper.connectBle()
+        }
+    }
+
+    /// On Destroy application
     override fun onDestroy() {
         super.onDestroy()
         bluetoothSocket?.close()
         cameraExecutor.shutdown()
     }
 
+    /// Companion Object
+    /// Set up permissions
     companion object {
         private const val TAG = "EPICAM-2"
         private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUIRED_PERMISSIONS = arrayOf(
+        private val REQUIRED_PERMISSIONS = mutableListOf(
             Manifest.permission.CAMERA,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE,
-            Manifest.permission.BLUETOOTH,
-            Manifest.permission.BLUETOOTH_ADMIN
-        )
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        ).apply {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+                add(Manifest.permission.BLUETOOTH_SCAN)
+            } else {
+                add(Manifest.permission.BLUETOOTH)
+                add(Manifest.permission.BLUETOOTH_ADMIN)
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        }.toTypedArray()
     }
+
 }
