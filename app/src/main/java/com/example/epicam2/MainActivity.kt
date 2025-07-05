@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
     private val countdownTime = 3
 
     // Bluetooth fields
-    private lateinit var bluetoothHelper: BluetoothHelper
+    private lateinit var bluetoothManager: BluetoothManager
     private val requestCode = 1001
     private val bluetoothPermissions = arrayOf(
         Manifest.permission.BLUETOOTH_SCAN,
@@ -79,7 +79,7 @@ class MainActivity : AppCompatActivity() {
         startCamera()
 
         // Initialize Bluetooth helper
-        bluetoothHelper = BluetoothHelper(this)
+        bluetoothManager = BluetoothManager(this)
         onRequestPermissionsResult(REQUEST_CODE_PERMISSIONS, REQUIRED_PERMISSIONS, intArrayOf(PackageManager.PERMISSION_GRANTED))
 
         // Init components
@@ -167,7 +167,7 @@ class MainActivity : AppCompatActivity() {
         countdownText.visibility = View.VISIBLE
 
         // Light ON
-        bluetoothHelper.sendLampCommand(true)
+        bluetoothManager.sendLampCommand(true)
 
         val countdownRunnable = object : Runnable {
             override fun run() {
@@ -235,7 +235,7 @@ class MainActivity : AppCompatActivity() {
         deleteButton.visibility = View.VISIBLE
 
         // Light OFF
-        bluetoothHelper.sendLampCommand(false)
+        bluetoothManager.sendLampCommand(false)
     }
 
     /// Start Camera
@@ -279,7 +279,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
 
                 // Connect Bluetooth
-                bluetoothHelper.connectBle()
+                bluetoothManager.connectBle()
             } else {
                 Toast.makeText(this, "Bluetooth and camera need permissions", Toast.LENGTH_LONG).show()
             }
@@ -294,7 +294,7 @@ class MainActivity : AppCompatActivity() {
 
     /// On Destroy application
     override fun onDestroy() {
-        bluetoothHelper.disconnectBle()
+        bluetoothManager.disconnectBle()
         cameraExecutor.shutdown()
 
         super.onDestroy()

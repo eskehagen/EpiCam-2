@@ -11,7 +11,7 @@ import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import java.util.*
 
-class BluetoothHelper(private val context: Context) {
+class BluetoothManager(private val context: Context) {
 
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private val bleScanner: BluetoothLeScanner? = bluetoothAdapter?.bluetoothLeScanner
@@ -29,18 +29,18 @@ class BluetoothHelper(private val context: Context) {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             result.device?.let { device ->
                 if (device.name == "ESP32") {
-                    Log.d("BluetoothHelper", "ESP32 found, connecting...")
+                    Log.d("BluetoothManager", "ESP32 found, connecting...")
                     stopBleScan()
 
                     if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                        Log.w("BluetoothHelper", "Missing BLUETOOTH_CONNECT permission")
+                        Log.w("BluetoothManager", "Missing BLUETOOTH_CONNECT permission")
                         return
                     }
 
                     try {
                         bluetoothGatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
                     } catch (e: SecurityException) {
-                        Log.e("BluetoothHelper", "Connect failed: ${e.message}")
+                        Log.e("BluetoothManager", "Connect failed: ${e.message}")
                     }
                 }
             }
@@ -51,16 +51,16 @@ class BluetoothHelper(private val context: Context) {
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                Log.w("BluetoothHelper", "Missing BLUETOOTH_CONNECT permission for connection state change event")
+                Log.w("BluetoothManager", "Missing BLUETOOTH_CONNECT permission for connection state change event")
                 return
             }
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.d("BluetoothHelper", "Connected to ESP32")
+                Log.d("BluetoothManager", "Connected to ESP32")
                 bluetoothGatt = gatt
                 gatt.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                Log.d("BluetoothHelper", "Disconnected from ESP32")
+                Log.d("BluetoothManager", "Disconnected from ESP32")
                 bluetoothGatt?.close()
                 bluetoothGatt = null
                 ledCharacteristic = null
@@ -73,7 +73,7 @@ class BluetoothHelper(private val context: Context) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 val service = gatt.getService(serviceUUID)
                 ledCharacteristic = service?.getCharacteristic(ledUUID)
-                Log.d("BluetoothHelper", "Service discovered, LED characteristic ready: ${ledCharacteristic != null}")
+                Log.d("BluetoothManager", "Service discovered, LED characteristic ready: ${ledCharacteristic != null}")
             }
         }
 
@@ -82,7 +82,7 @@ class BluetoothHelper(private val context: Context) {
             characteristic: BluetoothGattCharacteristic?,
             status: Int
         ) {
-            Log.d("BluetoothHelper", "Characteristic write status: $status")
+            Log.d("BluetoothManager", "Characteristic write status: $status")
         }
     }
 
@@ -90,23 +90,23 @@ class BluetoothHelper(private val context: Context) {
     fun connectBle() {
         if (!isScanning && bluetoothAdapter?.isEnabled == true) {
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-                Log.w("BluetoothHelper", "Missing BLUETOOTH_SCAN permission")
+                Log.w("BluetoothManager", "Missing BLUETOOTH_SCAN permission")
                 return
             }
 
             try {
-                Log.d("BluetoothHelper", "Starting BLE scan...")
-                Log.d("BluetoothHelper", "BLE Adapter status: ${bluetoothAdapter?.isEnabled}")
+                Log.d("BluetoothManager", "Starting BLE scan...")
+                Log.d("BluetoothManager", "BLE Adapter status: ${bluetoothAdapter?.isEnabled}")
 
                 bleScanner?.startScan(scanCallback)
                 isScanning = true
 
-                Log.d("BluetoothHelper", "BLE scan success!")
+                Log.d("BluetoothManager", "BLE scan success!")
                 // Stop scan after timeout
                 handler.postDelayed({ stopBleScan() }, 10000)
             }
             catch (e: SecurityException) {
-                Log.e("BluetoothHelper", "BLE scan failed: ${e.message}")
+                Log.e("BluetoothManager", "BLE scan failed: ${e.message}")
             }
         }
     }
@@ -115,15 +115,15 @@ class BluetoothHelper(private val context: Context) {
     private fun stopBleScan() {
         if (isScanning) {
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-                Log.w("BluetoothHelper", "Missing BLUETOOTH_SCAN permission for stopScan")
+                Log.w("BluetoothManager", "Missing BLUETOOTH_SCAN permission for stopScan")
                 return
             }
 
             try {
                 bleScanner?.stopScan(scanCallback)
-                Log.d("BluetoothHelper", "BLE Scan stopped")
+                Log.d("BluetoothManager", "BLE Scan stopped")
             } catch (e: SecurityException) {
-                Log.e("BluetoothHelper", "Stop BLE scan failed: ${e.message}")
+                Log.e("BluetoothManager", "Stop BLE scan failed: ${e.message}")
             }
             isScanning = false
         }
@@ -132,7 +132,7 @@ class BluetoothHelper(private val context: Context) {
     /// Disconnect BLE
     fun disconnectBle() {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            Log.w("BluetoothHelper", "Missing BLUETOOTH_CONNECT permission for disconnect")
+            Log.w("BluetoothManager", "Missing BLUETOOTH_CONNECT permission for disconnect")
             return
         }
 
@@ -140,13 +140,13 @@ class BluetoothHelper(private val context: Context) {
         bluetoothGatt?.close()
         bluetoothGatt = null
         ledCharacteristic = null
-        Log.d("BluetoothHelper", "Disconnected manually")
+        Log.d("BluetoothManager", "Disconnected manually")
     }
 
     /// Send lamp command to toggle light
     fun sendLampCommand(isOn: Boolean) {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            Log.w("BluetoothHelper", "Missing BLUETOOTH_CONNECT permission to write characteristic command")
+            Log.w("BluetoothManager", "Missing BLUETOOTH_CONNECT permission to write characteristic command")
             return
         }
 
@@ -154,7 +154,7 @@ class BluetoothHelper(private val context: Context) {
         ledCharacteristic?.let { characteristic ->
             characteristic.value = value
             val success = bluetoothGatt?.writeCharacteristic(characteristic) ?: false
-            Log.d("BluetoothHelper", "Sending lamp ${if (isOn) "ON" else "OFF"}: $success")
-        } ?: Log.w("BluetoothHelper", "LED characteristic not available")
+            Log.d("BluetoothManager", "Sending lamp ${if (isOn) "ON" else "OFF"}: $success")
+        } ?: Log.w("BluetoothManager", "LED characteristic not available")
     }
 }
