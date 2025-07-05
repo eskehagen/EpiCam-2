@@ -1,12 +1,8 @@
 package com.example.epicam2
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothSocket
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
@@ -20,7 +16,6 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -29,24 +24,19 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import java.io.File
-import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.UUID
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var imageCapture: ImageCapture
     private lateinit var cameraExecutor: ExecutorService
-
-    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
-    private var bluetoothSocket: BluetoothSocket? = null
-    private var outputStream: OutputStream? = null
-    private val esp32MacAddress = "00:11:22:33:44:55" // Udskift med ESP32 MAC-adresse
-    private val uuid: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 
     private lateinit var countdownText: TextView
     private val handler = Handler(Looper.getMainLooper())
@@ -56,26 +46,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var saveButton: ImageButton
     private lateinit var deleteButton: ImageButton
     private var lastPhotoFile: File? = null
+    private val countdownTime = 3
 
     // Bluetooth fields
     private lateinit var bluetoothHelper: BluetoothHelper
     private val requestCode = 1001
-    private val bluetoothPermissions =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(
-                Manifest.permission.BLUETOOTH,
-                Manifest.permission.BLUETOOTH_ADMIN,
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-            )
-        } else {
-            arrayOf(
-                Manifest.permission.BLUETOOTH,
-                Manifest.permission.BLUETOOTH_ADMIN
-            )
-        }
+    private val bluetoothPermissions = arrayOf(
+        Manifest.permission.BLUETOOTH_SCAN,
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.ACCESS_FINE_LOCATION
+        )
 
     /// On Create (Constructor)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,7 +80,7 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize Bluetooth helper
         bluetoothHelper = BluetoothHelper(this)
-        checkAndRequestBluetoothPermissions()
+        onRequestPermissionsResult(REQUEST_CODE_PERMISSIONS, REQUIRED_PERMISSIONS, intArrayOf(PackageManager.PERMISSION_GRANTED))
 
         // Init components
         captureButton = findViewById<Button>(R.id.camera_capture_button)
@@ -183,7 +163,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startCountdown() {
-        var count = 3
+        var count = countdownTime
         countdownText.visibility = View.VISIBLE
 
         // Light ON
@@ -226,7 +206,8 @@ class MainActivity : AppCompatActivity() {
                     showImagePreview(photoFile)
 
                     val bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
-                    previewImage.setImageBitmap(bitmap)
+                    val mirroredImage = mirrorBitmap(bitmap)
+                    previewImage.setImageBitmap(mirroredImage)
                     previewImage.visibility = View.VISIBLE
                     previewImage.startAnimation(fadeInFx)
                     saveButton.visibility = View.VISIBLE
@@ -296,32 +277,27 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
+
+                // Connect Bluetooth
+                bluetoothHelper.connectBle()
             } else {
                 Toast.makeText(this, "Bluetooth and camera need permissions", Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    /// Check and request Bluetooth Permissions
-    private fun checkAndRequestBluetoothPermissions() {
-        val missingPermissions = bluetoothPermissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-
-        if (missingPermissions.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, missingPermissions.toTypedArray(), requestCode)
-        }
-        else {
-            // Safe to start scanning
-            bluetoothHelper.connectBle()
-        }
+    /// Mirror bitmap (taken selfie image)
+    private fun mirrorBitmap(bitmap: Bitmap): Bitmap {
+        val matrix = Matrix().apply { preScale(-1f, 1f) }
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
     /// On Destroy application
     override fun onDestroy() {
-        super.onDestroy()
-        bluetoothSocket?.close()
+        bluetoothHelper.disconnectBle()
         cameraExecutor.shutdown()
+
+        super.onDestroy()
     }
 
     /// Companion Object
@@ -331,17 +307,11 @@ class MainActivity : AppCompatActivity() {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = mutableListOf(
             Manifest.permission.CAMERA,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        ).apply {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                add(Manifest.permission.BLUETOOTH_CONNECT)
-                add(Manifest.permission.BLUETOOTH_SCAN)
-            } else {
-                add(Manifest.permission.BLUETOOTH)
-                add(Manifest.permission.BLUETOOTH_ADMIN)
-                add(Manifest.permission.ACCESS_FINE_LOCATION)
-            }
-        }.toTypedArray()
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ).toTypedArray()
     }
 
 }

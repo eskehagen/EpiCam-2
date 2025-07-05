@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.example.epicam2"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.epicam2"
-        minSdk = 23
-        targetSdk = 35
+        minSdk = 31
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 

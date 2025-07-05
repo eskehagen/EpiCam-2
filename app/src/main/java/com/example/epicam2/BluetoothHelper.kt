@@ -38,7 +38,7 @@ class BluetoothHelper(private val context: Context) {
                     }
 
                     try {
-                        device.connectGatt(context, false, gattCallback)
+                        bluetoothGatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
                     } catch (e: SecurityException) {
                         Log.e("BluetoothHelper", "Connect failed: ${e.message}")
                     }
@@ -63,6 +63,9 @@ class BluetoothHelper(private val context: Context) {
                 Log.d("BluetoothHelper", "Disconnected from ESP32")
                 bluetoothGatt?.close()
                 bluetoothGatt = null
+                ledCharacteristic = null
+                // Try to reconnect after 5 sec
+                handler.postDelayed({ connectBle() }, 5000)
             }
         }
 
@@ -93,10 +96,12 @@ class BluetoothHelper(private val context: Context) {
 
             try {
                 Log.d("BluetoothHelper", "Starting BLE scan...")
+                Log.d("BluetoothHelper", "BLE Adapter status: ${bluetoothAdapter?.isEnabled}")
+
                 bleScanner?.startScan(scanCallback)
                 isScanning = true
 
-                Log.e("BluetoothHelper", "BLE scan success!")
+                Log.d("BluetoothHelper", "BLE scan success!")
                 // Stop scan after timeout
                 handler.postDelayed({ stopBleScan() }, 10000)
             }
