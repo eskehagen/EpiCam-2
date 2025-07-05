@@ -27,8 +27,12 @@ class BluetoothManager(private val context: Context) {
     /// BLE Scan Callback
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
+
+            // Get BLE target device name from configuration
+            val targetDeviceName = AppConfig.getBluetoothName(context)
+
             result.device?.let { device ->
-                if (device.name == "ESP32") {
+                if (device.name == targetDeviceName) {
                     Log.d("BluetoothManager", "ESP32 found, connecting...")
                     stopBleScan()
 
@@ -158,3 +162,4 @@ class BluetoothManager(private val context: Context) {
         } ?: Log.w("BluetoothManager", "LED characteristic not available")
     }
 }
+

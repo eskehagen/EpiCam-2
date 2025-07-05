@@ -95,4 +95,19 @@
         android:layout_marginBottom="100dp"
         android:layout_marginStart="100dp" />
 
+    <!-- Menu knap  -->
+    <ImageButton
+        android:id="@+id/menuButton"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:src="@drawable/delete_icon"
+        android:contentDescription="Menu"
+        android:background="@android:color/transparent"
+        android:scaleType="fitCenter"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginBottom="600dp"
+        android:layout_marginStart="1070dp" />
+
+
 </androidx.constraintlayout.widget.ConstraintLayout>

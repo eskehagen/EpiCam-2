@@ -45,17 +45,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var previewImage: ImageView
     private lateinit var saveButton: ImageButton
     private lateinit var deleteButton: ImageButton
+    private lateinit var menuButton: ImageButton
     private var lastPhotoFile: File? = null
     private val countdownTime = 3
 
     // Bluetooth fields
     private lateinit var bluetoothManager: BluetoothManager
-    private val requestCode = 1001
-    private val bluetoothPermissions = arrayOf(
-        Manifest.permission.BLUETOOTH_SCAN,
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.ACCESS_FINE_LOCATION
-        )
 
     /// On Create (Constructor)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,6 +83,7 @@ class MainActivity : AppCompatActivity() {
         previewImage = findViewById(R.id.preview_image)
         saveButton = findViewById(R.id.save_button)
         deleteButton = findViewById(R.id.delete_button)
+        menuButton = findViewById(R.id.menuButton)
 
         // Capture button
         captureButton.startAnimation(AnimationUtils.loadAnimation(this, R.anim.pulse).apply {
@@ -157,6 +153,13 @@ class MainActivity : AppCompatActivity() {
                     repeatCount = Animation.INFINITE
                 }
             )
+        }
+
+        // Menu button Click
+        menuButton.setOnClickListener {
+            SettingsDialogHelper.showPinDialog(this) {
+                SettingsDialogHelper.showSettingsDialog(this)
+            }
         }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
