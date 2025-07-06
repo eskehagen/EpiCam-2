@@ -3,6 +3,7 @@ import android.app.AlertDialog
 import android.content.Context
 import android.text.InputType
 import android.util.TypedValue
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
@@ -12,28 +13,44 @@ object SettingsDialogHelper {
 
     /// Show pin code dialog
     fun showPinDialog(activity: Activity, onSuccess: () -> Unit) {
+        val prefs = activity.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
+        val storedPin = prefs.getString("PIN_CODE", "1234")
+
         val input = EditText(activity).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
-            hint = "Indtast PIN-kode"
+            imeOptions = EditorInfo.IME_ACTION_DONE
         }
 
-        val prefs = activity.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
-        val savedPin = prefs.getString("PIN_CODE", "1234")
-
-        AlertDialog.Builder(activity)
-            .setTitle("PIN-kode krævet")
+        val dialog = AlertDialog.Builder(activity)
+            .setTitle("Indtast PIN-kode")
             .setView(input)
-            .setPositiveButton("OK") { dialog, _ ->
+            .setPositiveButton("OK", null) // vi sætter click listener senere
+            .setNegativeButton("Annuller", null)
+            .create()
+
+        input.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.performClick()
+                true
+            } else {
+                false
+            }
+        }
+
+        dialog.setOnShowListener {
+            val button = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            button.setOnClickListener {
                 val enteredPin = input.text.toString()
-                if (enteredPin == savedPin) {
+                if (enteredPin == storedPin) {
+                    dialog.dismiss()
                     onSuccess()
                 } else {
                     Toast.makeText(activity, "Forkert PIN-kode", Toast.LENGTH_SHORT).show()
                 }
-                dialog.dismiss()
             }
-            .setNegativeButton("Annuller") { dialog, _ -> dialog.cancel() }
-            .show()
+        }
+
+        dialog.show()
     }
 
     /// Show settings menu dialog

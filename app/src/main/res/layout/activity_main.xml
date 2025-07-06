@@ -44,7 +44,7 @@
         android:layout_width="400dp"
         android:layout_height="400dp"
         android:text="Tag billede"
-        android:textSize="40sp"
+        android:textSize="60sp"
         android:textStyle="bold"
         android:textColor="@android:color/black"
         android:backgroundTint="@android:color/background_light"
@@ -98,16 +98,27 @@
     <!-- Menu knap  -->
     <ImageButton
         android:id="@+id/menuButton"
-        android:layout_width="160dp"
-        android:layout_height="160dp"
-        android:src="@drawable/delete_icon"
+        android:layout_width="55dp"
+        android:layout_height="55dp"
+        android:src="@drawable/epic_menu_icon"
         android:contentDescription="Menu"
         android:background="@android:color/transparent"
         android:scaleType="fitCenter"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginBottom="600dp"
-        android:layout_marginStart="1070dp" />
+        android:layout_marginBottom="720dp"
+        android:layout_marginStart="1190dp" />
 
+    <!-- Logo image  -->
+    <ImageView
+        android:id="@+id/logo_image"
+        android:layout_width="324dp"
+        android:layout_height="150dp"
+        android:src="@drawable/epic_logo_1"
+        android:contentDescription="Epic logo"
+        android:layout_margin="16dp"
+        android:scaleType="fitCenter"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
